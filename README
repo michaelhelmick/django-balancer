@@ -1,0 +1,2 @@
+When it grows up, this project wants to be a set of tools for database load
+balancing using Django 1.2's multi-database features.
