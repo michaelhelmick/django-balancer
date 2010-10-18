@@ -60,7 +60,7 @@ class WeightedMasterSlaveRouter(WeightedRandomRouter):
         """
         Allow any relation between two objects in the slave pool or the master.
         """
-        pool = self.pool + self.master
+        pool = self.pool + [self.master]
         if obj1._state.db in pool and obj2._state.db in pool:
             return True
         return None

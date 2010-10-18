@@ -27,6 +27,7 @@ DATABASES = {
     }
 }
 
+MASTER_DATABASE = 'default'
 DATABASE_POOL = {
     'default': 1,
     'other': 2,

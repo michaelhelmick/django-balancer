@@ -1,13 +1,21 @@
 from django.conf import settings
 from django.test import TestCase
 
-from balancer.routers import WeightedRandomRouter
+from balancer.routers import WeightedRandomRouter, WeightedMasterSlaveRouter
 
 
 class WeightedRandomRouterTestCase(TestCase):
     
     def setUp(self):
         self.router = WeightedRandomRouter()
+        
+        class MockObj(object):
+            class _state:
+                db = None
+        
+        self.obj1 = MockObj()
+        self.obj2 = MockObj()
+                
         
     def test_random_db_selection(self):
         """Simple test to make sure that random database selection works."""
@@ -44,5 +52,50 @@ class WeightedRandomRouterTestCase(TestCase):
         # Reinitialize the router with new weights
         self.router = WeightedRandomRouter()
         check_rate(target=0.25)
+        
+        settings.DATABASE_POOL = original_weights
+
+    def test_relations(self):
+        """Relations should only be allowed for databases in the pool."""
+        self.obj1._state.db = 'default'
+        self.obj2._state.db = 'other'
+        self.assertTrue(self.router.allow_relation(self.obj1, self.obj2))
+        
+        self.obj1._state.db = 'other'
+        self.obj2._state.db = 'utility'
+        self.assertFalse(self.router.allow_relation(self.obj1, self.obj2))
+
+class WeightedMasterSlaveRouterTestCase(TestCase):
+
+    def setUp(self):
+        self.router = WeightedMasterSlaveRouter()
+        
+        class MockObj(object):
+            class _state:
+                db = None
+        
+        self.obj1 = MockObj()
+        self.obj2 = MockObj()
+    
+    def test_writes(self):
+        """Writes should always go to master."""
+        self.assertEqual(self.router.db_for_write(self.obj1), 'default')
+    
+    def test_relations(self):
+        """
+        Relations should be allowed for databases in the pool and the master.
+        """
+        original_weights = settings.DATABASE_POOL
+        settings.DATABASE_POOL = {
+            'other': 1,
+            'utility': 1,
+        }
+        self.router = WeightedRandomRouter()
+        
+        # Even though default isn't in the database pool, it is the master so
+        # the relation should be allowed.
+        self.obj1._state.db = 'default'
+        self.obj2._state.db = 'other'
+        self.assertTrue(self.router.allow_relation(self.obj1, self.obj2))
         
         settings.DATABASE_POOL = original_weights
