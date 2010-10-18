@@ -15,22 +15,8 @@ MANAGERS = ADMINS
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-    },
-    'other': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'TEST_NAME': 'other_db',
-    },
-    'utility': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'TEST_NAME': 'utility_db',
+        'ENGINE': 'django.db.backends.sqlite3'
     }
-}
-
-MASTER_DATABASE = 'default'
-DATABASE_POOL = {
-    'default': 1,
-    'other': 2,
 }
 
 # Local time zone for this installation. Choices can be found here:
