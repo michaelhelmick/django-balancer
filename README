@@ -8,6 +8,5 @@ random selection in a master/slave configuration.
 
 Coming soon:
 
-    * Basic random selection
     * Database 'pinning' after writes using the currently configured cache 
       backend.
