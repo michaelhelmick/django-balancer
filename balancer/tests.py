@@ -1,7 +1,8 @@
 from django.conf import settings
 from django.test import TestCase
 
-from balancer.routers import WeightedRandomRouter, WeightedMasterSlaveRouter
+from balancer.routers import RandomRouter, WeightedRandomRouter, \
+                             WeightedMasterSlaveRouter
 
 
 class BalancerTests(TestCase):
@@ -44,18 +45,34 @@ class BalancerTests(TestCase):
         settings.DATABASE_POOL = self.original_pool
 
 
-class WeightedRandomRouterTestCase(BalancerTests):
+class RandomRouterTestCase(BalancerTests):
     
     def setUp(self):
-        super(WeightedRandomRouterTestCase, self).setUp()
-        self.router = WeightedRandomRouter()
-                
-        
+        super(RandomRouterTestCase, self).setUp()
+        self.router = RandomRouter()
+    
     def test_random_db_selection(self):
         """Simple test to make sure that random database selection works."""
         for i in range(10):
             self.assertIn(self.router.get_random_db(),
                           settings.DATABASE_POOL.keys())
+    
+    def test_relations(self):
+        """Relations should only be allowed for databases in the pool."""
+        self.obj1._state.db = 'default'
+        self.obj2._state.db = 'other'
+        self.assertTrue(self.router.allow_relation(self.obj1, self.obj2))
+        
+        self.obj1._state.db = 'other'
+        self.obj2._state.db = 'utility'
+        self.assertFalse(self.router.allow_relation(self.obj1, self.obj2))
+
+
+class WeightedRandomRouterTestCase(BalancerTests):
+    
+    def setUp(self):
+        super(WeightedRandomRouterTestCase, self).setUp()
+        self.router = WeightedRandomRouter()
     
     def test_weighted_db_selection(self):
         """
@@ -89,15 +106,6 @@ class WeightedRandomRouterTestCase(BalancerTests):
         
         settings.DATABASE_POOL = original_weights
 
-    def test_relations(self):
-        """Relations should only be allowed for databases in the pool."""
-        self.obj1._state.db = 'default'
-        self.obj2._state.db = 'other'
-        self.assertTrue(self.router.allow_relation(self.obj1, self.obj2))
-        
-        self.obj1._state.db = 'other'
-        self.obj2._state.db = 'utility'
-        self.assertFalse(self.router.allow_relation(self.obj1, self.obj2))
 
 class WeightedMasterSlaveRouterTestCase(BalancerTests):
 
