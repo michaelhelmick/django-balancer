@@ -48,11 +48,23 @@ class WeightedMasterSlaveRouter(WeightedRandomRouter):
     A router that randomly selected from a weighted pool of slave databases
     for read operations, but uses the default database for writes.
     """
+    def __init__(self):
+        super(WeightedMasterSlaveRouter, self).__init__()
+        self.master = settings.MASTER_DATABASE
         
     def db_for_write(self, model, **hints):
         """Send all writes to the master"""
-        return settings.MASTER_DATABASE
-        
+        return self.master
+
+    def allow_relation(self, obj1, obj2, **hints):
+        """
+        Allow any relation between two objects in the slave pool or the master.
+        """
+        pool = self.pool + self.master
+        if obj1._state.db in pool and obj2._state.db in pool:
+            return True
+        return None
+
     def allow_syncdb(self, db, model):
         """Only allow syncdb on the master"""
-        return db == settings.MASTER_DATABASE
+        return db == self.master
