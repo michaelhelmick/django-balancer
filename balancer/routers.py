@@ -102,7 +102,8 @@ class PinningRouterMixin(object):
         return super(PinningRouterMixin, self).db_for_read(model, **hints)
     
     def db_for_write(self, model, **hints):
-        _locals.db_write = True
+        PinningRouterMixin.set_db_write()
+        PinningRouterMixin.pin_thread()
         return super(PinningRouterMixin, self).db_for_write(model, **hints)
     
     
@@ -126,6 +127,21 @@ class PinningRouterMixin(object):
     def is_pinned():
         """Check whether the current thread is pinned."""
         return getattr(_locals, 'pinned', False)
+    
+    @staticmethod
+    def set_db_write():
+        """Indicate that the database was written to."""
+        _locals.db_write = True
+    
+    @staticmethod
+    def clear_db_write():
+        if getattr(_locals, 'db_write', False):
+            del _locals.db_write
+    
+    @staticmethod
+    def db_was_written():
+        """Check whether a database write was performed."""
+        return getattr(_locals, 'db_write', False)
 
 class PinningMasterSlaveRouter(PinningMixin, WeightedMasterSlaveRouter):
     """A weighted master/slave router that uses the pinning mixin."""
