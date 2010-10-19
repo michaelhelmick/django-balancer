@@ -5,8 +5,3 @@ A set of tools for using Django's multi-db feature to balance database requests
 between multiple replicated databases.  It currently provides a router for 
 weighted random selection from a database pool, and a router for weighted
 random selection in a master/slave configuration.
-
-Coming soon:
-
-    * Database 'pinning' after writes using the currently configured cache 
-      backend.
