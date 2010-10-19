@@ -1,7 +1,11 @@
-import random
 import bisect
+import random
+import threading
 
 from django.conf import settings
+
+
+_locals = threading.local()
 
 
 class RandomRouter(object):
@@ -83,3 +87,46 @@ class WeightedMasterSlaveRouter(WeightedRandomRouter):
     def allow_syncdb(self, db, model):
         """Only allow syncdb on the master"""
         return db == self.master
+
+
+class PinningRouterMixin(object):
+    """
+    A mixin that pins reads to the database defined in the MASTER_DATABASE
+    setting for a pre-determined period of time after a write.  Requires the
+    PinningRouterMiddleware.
+    """
+    
+    def db_for_read(self, model, **hints):
+        if PinningRouterMixin.is_pinned:
+            return settings.MASTER_DATABASE
+        return super(PinningRouterMixin, self).db_for_read(model, **hints)
+    
+    def db_for_write(self, model, **hints):
+        _locals.db_write = True
+        return super(PinningRouterMixin, self).db_for_write(model, **hints)
+    
+    
+    @staticmethod
+    def pin_thread():
+        """
+        Mark this thread as 'pinned', so that future reads will temporarily go
+        to the master database for the current user.  
+        """
+        _locals.pinned = True
+    
+    @staticmethod
+    def unpin_thread():
+        """
+        Clear the 'pinned' flag so that future reads are distributed normally.
+        """
+        if getattr(_locals, 'pinned', False):
+            del _locals.pinned
+    
+    @staticmethod
+    def is_pinned():
+        """Check whether the current thread is pinned."""
+        return getattr(_locals, 'pinned', False)
+
+class PinningMasterSlaveRouter(PinningMixin, WeightedMasterSlaveRouter):
+    """A weighted master/slave router that uses the pinning mixin."""
+    pass
