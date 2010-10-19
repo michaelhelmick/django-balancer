@@ -15,3 +15,22 @@ def get_version(short=False):
     return version
 
 __version__ = get_version()
+
+TEST_DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+    },
+    'other': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'TEST_NAME': 'other_db',
+    },
+    'utility': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'TEST_NAME': 'utility_db',
+    }
+}
+TEST_MASTER_DATABASE = 'default'
+TEST_DATABASE_POOL = {
+    'default': 1,
+    'other': 2,
+}

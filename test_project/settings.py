@@ -4,6 +4,8 @@ import os, sys
 PROJECT_BASE = os.path.dirname(__file__)
 sys.path.insert(0, os.path.abspath(os.path.join(PROJECT_BASE, '..')))
 
+import balancer
+
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
 
@@ -13,11 +15,10 @@ ADMINS = (
 
 MANAGERS = ADMINS
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3'
-    }
-}
+DATABASES = balancer.TEST_DATABASES
+
+MASTER_DATABASE = balancer.TEST_MASTER_DATABASE
+DATABASE_POOL = balancer.TEST_DATABASE_POOL
 
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name

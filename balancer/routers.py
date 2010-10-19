@@ -97,7 +97,7 @@ class PinningRouterMixin(object):
     """
     
     def db_for_read(self, model, **hints):
-        if PinningRouterMixin.is_pinned:
+        if PinningRouterMixin.is_pinned():
             return settings.MASTER_DATABASE
         return super(PinningRouterMixin, self).db_for_read(model, **hints)
     
@@ -143,6 +143,6 @@ class PinningRouterMixin(object):
         """Check whether a database write was performed."""
         return getattr(_locals, 'db_write', False)
 
-class PinningMasterSlaveRouter(PinningMixin, WeightedMasterSlaveRouter):
+class PinningMasterSlaveRouter(PinningRouterMixin, WeightedMasterSlaveRouter):
     """A weighted master/slave router that uses the pinning mixin."""
     pass
