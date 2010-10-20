@@ -8,7 +8,9 @@ import balancer
 from balancer.routers import RandomRouter, RoundRobinRouter, \
                              WeightedRandomRouter, \
                              WeightedMasterSlaveRouter, \
-                             PinningMasterSlaveRouter
+                             RoundRobinMasterSlaveRouter, \
+                             PinningRouterMixin, PinningWMSRouter, \
+                             PinningRRMSRouter
 from balancer.middleware import PINNING_KEY, PINNING_SECONDS, \
                                 PinningSessionMiddleware, \
                                 PinningCookieMiddleware
@@ -112,12 +114,9 @@ class WeightedRandomRouterTestCase(BalancerTestCase):
         check_rate(target=0.25)
 
 
-class WeightedMasterSlaveRouterTestCase(BalancerTestCase):
-
-    def setUp(self):
-        super(WeightedMasterSlaveRouterTestCase, self).setUp()
-        self.router = WeightedMasterSlaveRouter()
-
+class MasterSlaveTestMixin(object):
+    """A mixin for testing routers that use the MasterSlaveMixin."""
+    
     def test_writes(self):
         """Writes should always go to master."""
         self.assertEqual(self.router.db_for_write(self.obj1), 'default')
@@ -139,11 +138,27 @@ class WeightedMasterSlaveRouterTestCase(BalancerTestCase):
         self.assertTrue(self.router.allow_relation(self.obj1, self.obj2))
 
 
-class PinningMasterSlaveRouterTestCase(BalancerTestCase):
+class WMSRouterTestCase(MasterSlaveTestMixin, BalancerTestCase):
+    """Tests for the WeightedMasterSlaveRouter."""
+
+    def setUp(self):
+        super(WMSRouterTestCase, self).setUp()
+        self.router = WeightedMasterSlaveRouter()
+
+
+class RRMSRouterTestCase(MasterSlaveTestMixin, BalancerTestCase):
+    """Tests for the RoundRobinMasterSlaveRouter."""
     
     def setUp(self):
-        super(PinningMasterSlaveRouterTestCase, self).setUp()
-        self.router = PinningMasterSlaveRouter()
+        super(RRMSRouterTestCase, self).setUp()
+        self.router = RoundRobinMasterSlaveRouter()
+
+
+class PinningRouterTestMixin(object):
+    """A mixin for testing routers that use the pinning mixin."""
+
+    def setUp(self):
+        super(PinningRouterTestMixin, self).setUp()
         
         class MockRequest(object):
             session = {}
@@ -182,24 +197,24 @@ class PinningMasterSlaveRouterTestCase(BalancerTestCase):
                 break
         self.assertTrue(success, "The 'other' database was offered in error.")
         
-        PinningMasterSlaveRouter.unpin_thread()
-        PinningMasterSlaveRouter.clear_db_write()
+        PinningRouterMixin.unpin_thread()
+        PinningRouterMixin.clear_db_write()
     
     def test_middleware(self):
         for middleware, vehicle in [(PinningSessionMiddleware(), 'session'),
                                     (PinningCookieMiddleware(), 'cookie')]:
             # The first request shouldn't pin the database
             middleware.process_request(self.mock_request)
-            self.assertFalse(PinningMasterSlaveRouter.is_pinned())
+            self.assertFalse(PinningRouterMixin.is_pinned())
             
             # A simulated write should, however
-            PinningMasterSlaveRouter.set_db_write()
+            PinningRouterMixin.set_db_write()
             
             # The response should set the session variable and clear the locals
             response = middleware.process_response(self.mock_request,
                                                    self.mock_response)
-            self.assertFalse(PinningMasterSlaveRouter.is_pinned())
-            self.assertFalse(PinningMasterSlaveRouter.db_was_written())
+            self.assertFalse(PinningRouterMixin.is_pinned())
+            self.assertFalse(PinningRouterMixin.db_was_written())
             if vehicle == 'session':
                 self.assertTrue(
                     self.mock_request.session.get(PINNING_KEY, False)
@@ -210,9 +225,9 @@ class PinningMasterSlaveRouterTestCase(BalancerTestCase):
             
             # The subsequent request should then pin the database
             middleware.process_request(self.mock_request)
-            self.assertTrue(PinningMasterSlaveRouter.is_pinned())
+            self.assertTrue(PinningRouterMixin.is_pinned())
             
-            PinningMasterSlaveRouter.unpin_thread()
+            PinningRouterMixin.unpin_thread()
             
             if vehicle == 'session':
                 # After the pinning period has expired, the request should no
@@ -220,6 +235,20 @@ class PinningMasterSlaveRouterTestCase(BalancerTestCase):
                 exp = timedelta(seconds=PINNING_SECONDS - 5)
                 self.mock_request.session[PINNING_KEY] = datetime.now() - exp
                 middleware.process_request(self.mock_request)
-                self.assertFalse(PinningMasterSlaveRouter.is_pinned())
+                self.assertFalse(PinningRouterMixin.is_pinned())
                 
-                PinningMasterSlaveRouter.unpin_thread()
+                PinningRouterMixin.unpin_thread()
+
+
+class PinningWMSRouterTestCase(PinningRouterTestMixin, BalancerTestCase):
+    
+    def setUp(self):
+        super(PinningWMSRouterTestCase, self).setUp()
+        self.router = PinningWMSRouter()
+
+
+class PinningRRMSRouterTestCase(PinningRouterTestMixin, BalancerTestCase):
+    
+    def setUp(self):
+        super(PinningRRMSRouterTestCase, self).setUp()
+        self.router = PinningRRMSRouter()
