@@ -5,25 +5,25 @@ from django.conf import settings
 from django.test import TestCase
 
 import balancer
-from balancer.routers import RandomRouter, WeightedRandomRouter, \
+from balancer.routers import RandomRouter, RoundRobinRouter, \
+                             WeightedRandomRouter, \
                              WeightedMasterSlaveRouter, \
                              PinningMasterSlaveRouter
 from balancer.middleware import PINNING_KEY, PINNING_SECONDS, \
                                 PinningSessionMiddleware, \
                                 PinningCookieMiddleware
 
-class BalancerTests(TestCase):
+class BalancerTestCase(TestCase):
 
     def setUp(self):
-        if not settings.ROOT_URLCONF == 'test_project.urls':
-            self.original_databases = settings.DATABASES
-            settings.DATABASES = balancer.TEST_DATABASES
+        self.original_databases = settings.DATABASES
+        settings.DATABASES = balancer.TEST_DATABASES
 
-            self.original_master = getattr(settings, 'MASTER_DATABASE', None)
-            settings.MASTER_DATABASE = balancer.TEST_MASTER_DATABASE
+        self.original_master = getattr(settings, 'MASTER_DATABASE', None)
+        settings.MASTER_DATABASE = balancer.TEST_MASTER_DATABASE
 
-            self.original_pool = getattr(settings, 'DATABASE_POOL', None)
-            settings.DATABASE_POOL = balancer.TEST_DATABASE_POOL
+        self.original_pool = getattr(settings, 'DATABASE_POOL', None)
+        settings.DATABASE_POOL = balancer.TEST_DATABASE_POOL
 
         class MockObj(object):
             class _state:
@@ -33,13 +33,12 @@ class BalancerTests(TestCase):
         self.obj2 = MockObj()
 
     def tearDown(self):
-        if not settings.ROOT_URLCONF == 'test_project.urls':
-            settings.DATABASES = self.original_databases
-            settings.MASTER_DATABASE = self.original_master
-            settings.DATABASE_POOL = self.original_pool
+        settings.DATABASES = self.original_databases
+        settings.MASTER_DATABASE = self.original_master
+        settings.DATABASE_POOL = self.original_pool
 
 
-class RandomRouterTestCase(BalancerTests):
+class RandomRouterTestCase(BalancerTestCase):
 
     def setUp(self):
         super(RandomRouterTestCase, self).setUp()
@@ -62,7 +61,22 @@ class RandomRouterTestCase(BalancerTests):
         self.assertFalse(self.router.allow_relation(self.obj1, self.obj2))
 
 
-class WeightedRandomRouterTestCase(BalancerTests):
+class RoundRobinRouterTestCase(BalancerTestCase):
+
+    def setUp(self):
+        super(RoundRobinRouterTestCase, self).setUp()
+        settings.DATABASE_POOL = ['default', 'other', 'utility']
+        self.router = RoundRobinRouter()
+    
+    def test_sequential_db_selection(self):
+        """Databases should cycle in order."""
+        for i in range(10):
+            self.assertEqual(self.router.get_next_db(), self.router.pool[0])
+            self.assertEqual(self.router.get_next_db(), self.router.pool[1])
+            self.assertEqual(self.router.get_next_db(), self.router.pool[2])
+
+
+class WeightedRandomRouterTestCase(BalancerTestCase):
 
     def setUp(self):
         super(WeightedRandomRouterTestCase, self).setUp()
@@ -89,7 +103,6 @@ class WeightedRandomRouterTestCase(BalancerTests):
         # half as much as 'other'.
         check_rate(target=0.5)
 
-        original_weights = settings.DATABASE_POOL
         settings.DATABASE_POOL = {
             'default': 1,
             'other': 4,
@@ -98,10 +111,8 @@ class WeightedRandomRouterTestCase(BalancerTests):
         self.router = WeightedRandomRouter()
         check_rate(target=0.25)
 
-        settings.DATABASE_POOL = original_weights
 
-
-class WeightedMasterSlaveRouterTestCase(BalancerTests):
+class WeightedMasterSlaveRouterTestCase(BalancerTestCase):
 
     def setUp(self):
         super(WeightedMasterSlaveRouterTestCase, self).setUp()
@@ -115,7 +126,6 @@ class WeightedMasterSlaveRouterTestCase(BalancerTests):
         """
         Relations should be allowed for databases in the pool and the master.
         """
-        original_weights = settings.DATABASE_POOL
         settings.DATABASE_POOL = {
             'other': 1,
             'utility': 1,
@@ -128,10 +138,8 @@ class WeightedMasterSlaveRouterTestCase(BalancerTests):
         self.obj2._state.db = 'other'
         self.assertTrue(self.router.allow_relation(self.obj1, self.obj2))
 
-        settings.DATABASE_POOL = original_weights
 
-
-class PinningMasterSlaveRouterTestCase(BalancerTests):
+class PinningMasterSlaveRouterTestCase(BalancerTestCase):
     
     def setUp(self):
         super(PinningMasterSlaveRouterTestCase, self).setUp()
