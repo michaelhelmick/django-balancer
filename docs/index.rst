@@ -13,6 +13,7 @@ Contents:
 
    installation
    routers
+   settings
 
 Indices and tables
 ==================
