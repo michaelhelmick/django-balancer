@@ -1,6 +1,7 @@
 import bisect
 import random
 import threading
+import warnings
 
 from django.conf import settings
 
@@ -143,6 +144,17 @@ class PinningRouterMixin(object):
         """Check whether a database write was performed."""
         return getattr(_locals, 'db_write', False)
 
-class PinningMasterSlaveRouter(PinningRouterMixin, WeightedMasterSlaveRouter):
+
+class PinningWMSRouter(PinningRouterMixin, WeightedMasterSlaveRouter):
     """A weighted master/slave router that uses the pinning mixin."""
     pass
+
+
+class PinningMasterSlaveRouter(PinningWMSRouter):
+    """An alias to PinningWMSRouter.  This will be removed in 0.4."""
+    
+    def __init__(self):
+        warnings.warn("This router has been renamed to 'PinningWMSRouter', "
+                      "and it will be removed in the next release.",
+                      DeprecationWarning)
+        super(PinningMasterSlaveRouter, self).__init__()
