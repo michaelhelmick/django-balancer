@@ -9,22 +9,10 @@ and writes.  This would be useful for replication configurations where all
 nodes act as masters, but you'd like some nodes to get more traffic than
 others.
 
-Settings Needed
----------------
+Required Settings
+-----------------
 
-``DATABASE_POOL``
-~~~~~~~~~~~~~~~~~
-
-A dict mapping the databases that should be included in the pool to to their
-weights.
-
-Example::
-
-    DATABASE_POOL = {
-        'default': 2,
-        'db02': 1,
-        'db03': 1,
-    }
+* :ref:`database-pool`
 
 WeightedMasterSlaveRouter
 *************************
@@ -34,19 +22,34 @@ database you designate as master for writes.  This is useful for master/slave
 configurations.  If you don't include the master database in the pool, it will
 only be used for writes.
 
-Settings Needed
----------------
+Required Settings
+-----------------
 
-``DATABASE_POOL``
-~~~~~~~~~~~~~~~~~
+* :ref:`database-pool`
+* :ref:`master-database`
 
-A dict mapping the databases that should be used for reads to their weights.
+PinningWMSRouter
+****************
 
-``MASTER_DATABASE``
-~~~~~~~~~~~~~~~~~~~
+This is a master/slave router that uses weighted random selection and pins
+reads to the master for a user after that user has executed a write to the
+database.  This is useful for replication configurations where there is a
+noticeable amount of lag between a write to master and the propagation of that
+data to the slave databases.
 
-The database that should be used for all writes.
+To use this router, you also need to use one of the included pinning middleware
+classes.  PinningSessionMiddleware uses the Django sessions contrib app, and
+PinningCookieMiddleware uses a cookie.
 
-Example::
+Required Settings
+-----------------
 
-    MASTER_DATABASE = 'default'
+* :ref:`database-pool`
+* :ref:`master-database`
+
+Optional Settings
+-----------------
+
+* :ref:`master-pinning-key`
+* :ref:`master-pinning-seconds`
+
