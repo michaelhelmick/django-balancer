@@ -136,23 +136,6 @@ class MasterSlaveTestMixin(object):
         self.obj1._state.db = 'default'
         self.obj2._state.db = 'other'
         self.assertTrue(self.router.allow_relation(self.obj1, self.obj2))
-    
-    @unittest.skipIf(not 'test_project' in settings.INSTALLED_APPS,
-                     'This test only works when test_project is in installed.')
-    def test_subqueries(self):
-        """
-        Regression test for issue #2 on Github - "Can't do subqueries with
-        queries on different DBs."
-        """
-        from test_project.models import Test, Related
-        
-        t = Test.objects.using('utility').create(name="Test 1")
-        Test.objects.create(name="Test 2")
-        r = Related.objects.create(test=t)
-        
-        tests = Test.objects.using('utility')
-        obj = Related.objects.using('default').get(test__in=tests)
-        self.assertEqual(obj, r)
 
 
 class WMSRouterTestCase(MasterSlaveTestMixin, BalancerTestCase):
