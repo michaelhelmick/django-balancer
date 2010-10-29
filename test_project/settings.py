@@ -90,4 +90,5 @@ INSTALLED_APPS = (
     'django.contrib.sites',
     'django.contrib.messages',
     'balancer',
+    'test_project',
 )
