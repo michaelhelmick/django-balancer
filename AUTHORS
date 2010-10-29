@@ -1,7 +1,7 @@
 Django-Balancer was created by Brandon Konkle.  It was inspired by the example
 in the Django docs, a post on Eli Bendersky's blog [1], and Jeff Balogh's
-django-multidb-router project.  Much of the pinning code was taken from
-Jeff Balogh's project and modified.
+django-multidb-router project.  Much of the pinning and round-robin code was
+taken from Jeff Balogh's project and modified.
 
 [1]: http://eli.thegreenplace.net/2010/01/22/weighted-random-generation-in-python/
 [2]: http://github.com/jbalogh/django-multidb-router/

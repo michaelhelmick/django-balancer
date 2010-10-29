@@ -6,8 +6,8 @@ Settings
 ``DATABASE_POOL``
 *****************
 
-A dict mapping the databases that should be included in the pool to to their
-weights.
+Can be either a list of database names to include in the pool, or a dict
+mapping the databases to their weights.
 
 Example::
 

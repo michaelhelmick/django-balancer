@@ -1,4 +1,4 @@
-VERSION = (0, 2, 0, "f", 1) # following PEP 386
+VERSION = (0, 3, 0, "f", 1) # following PEP 386
 DEV_N = None # for PyPi releases, set this to None
 
 
@@ -23,6 +23,7 @@ TEST_DATABASES = {
     'other': {
         'ENGINE': 'django.db.backends.sqlite3',
         'TEST_NAME': 'other_db',
+        'TEST_MIRROR': 'default',
     },
     'utility': {
         'ENGINE': 'django.db.backends.sqlite3',
