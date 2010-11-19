@@ -5,12 +5,12 @@ from django.conf import settings
 from django.test import TestCase
 
 import balancer
+from balancer import pinning
 from balancer.routers import RandomRouter, RoundRobinRouter, \
                              WeightedRandomRouter, \
                              WeightedMasterSlaveRouter, \
                              RoundRobinMasterSlaveRouter, \
                              PinningWMSRouter, PinningRRMSRouter
-from balancer.mixins import PinningMixin
 from balancer.middleware import PINNING_KEY, PINNING_SECONDS, \
                                 PinningSessionMiddleware, \
                                 PinningCookieMiddleware
@@ -161,8 +161,10 @@ class PinningRouterTestMixin(object):
         super(PinningRouterTestMixin, self).setUp()
         
         class MockRequest(object):
-            session = {}
             COOKIES = []
+            method = 'GET'
+            session = {}
+            
         
         self.mock_request = MockRequest()
         
@@ -197,24 +199,28 @@ class PinningRouterTestMixin(object):
                 break
         self.assertTrue(success, "The 'other' database was offered in error.")
         
-        PinningMixin.unpin_thread()
-        PinningMixin.clear_db_write()
+        pinning.unpin_thread()
+        pinning.clear_db_write()
     
     def test_middleware(self):
         for middleware, vehicle in [(PinningSessionMiddleware(), 'session'),
                                     (PinningCookieMiddleware(), 'cookie')]:
             # The first request shouldn't pin the database
             middleware.process_request(self.mock_request)
-            self.assertFalse(PinningMixin.is_pinned())
+            self.assertFalse(pinning.thread_is_pinned())
             
-            # A simulated write should, however
-            PinningMixin.set_db_write()
+            # A simulated write also shouldn't, if the request isn't a POST
+            pinning.set_db_write()
+            middleware.process_request(self.mock_request)
+            self.assertFalse(pinning.thread_is_pinned())
             
-            # The response should set the session variable and clear the locals
+            # This response should set the session variable and clear the pin
+            pinning.set_db_write()
+            self.mock_request.method = 'POST'
             response = middleware.process_response(self.mock_request,
                                                    self.mock_response)
-            self.assertFalse(PinningMixin.is_pinned())
-            self.assertFalse(PinningMixin.db_was_written())
+            self.assertFalse(pinning.thread_is_pinned())
+            self.assertFalse(pinning.db_was_written())
             if vehicle == 'session':
                 self.assertTrue(
                     self.mock_request.session.get(PINNING_KEY, False)
@@ -225,9 +231,9 @@ class PinningRouterTestMixin(object):
             
             # The subsequent request should then pin the database
             middleware.process_request(self.mock_request)
-            self.assertTrue(PinningMixin.is_pinned())
+            self.assertTrue(pinning.thread_is_pinned())
             
-            PinningMixin.unpin_thread()
+            pinning.unpin_thread()
             
             if vehicle == 'session':
                 # After the pinning period has expired, the request should no
@@ -235,9 +241,9 @@ class PinningRouterTestMixin(object):
                 exp = timedelta(seconds=PINNING_SECONDS - 5)
                 self.mock_request.session[PINNING_KEY] = datetime.now() - exp
                 middleware.process_request(self.mock_request)
-                self.assertFalse(PinningMixin.is_pinned())
+                self.assertFalse(pinning.thread_is_pinned())
                 
-                PinningMixin.unpin_thread()
+                pinning.unpin_thread()
 
 
 class PinningWMSRouterTestCase(PinningRouterTestMixin, BalancerTestCase):

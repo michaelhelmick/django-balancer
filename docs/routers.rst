@@ -66,9 +66,12 @@ PinningWMSRouter
 
 This is a master/slave router that uses weighted random selection and pins
 reads to the master for a user after that user has executed a write to the
-database.  This is useful for replication configurations where there is a
-noticeable amount of lag between a write to master and the propagation of that
-data to the slave databases.
+database with a POST request.  This is useful for replication configurations
+where there is a noticeable amount of lag between a write to master and the
+propagation of that data to the slave databases.  The reason that this is
+limited to POST requests is to eliminate pinning for incidental writes, such
+as updating a 'last accessed' timestamp or writing a history of pages viewed
+for a user.
 
 To use this router, you also need to use one of the included pinning middleware
 classes.  PinningSessionMiddleware uses the Django sessions contrib app, and

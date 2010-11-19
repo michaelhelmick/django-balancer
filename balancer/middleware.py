@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 
 from django.conf import settings
 
-from balancer.mixins import PinningMixin
+from balancer import pinning
 
 
 # The name of the session variable or cookie used by the middleware
@@ -26,18 +26,18 @@ class PinningSessionMiddleware(object):
         """
         pinned_until = request.session.get(PINNING_KEY, False)
         if pinned_until and pinned_until > datetime.now():
-            PinningMixin.pin_thread()
+            pinning.pin_thread()
         
     def process_response(self, request, response):
         """
         If there was a write to the db, set the session variable to enable
         pinning.  If the variable already exists, the time will be reset.
         """
-        if PinningMixin.db_was_written():
+        if pinning.db_was_written():
             pinned_until = datetime.now() + timedelta(seconds=PINNING_SECONDS)
             request.session[PINNING_KEY] = pinned_until
-            PinningMixin.clear_db_write()
-        PinningMixin.unpin_thread()
+            pinning.clear_db_write()
+        pinning.unpin_thread()
         return response
 
 
@@ -53,16 +53,18 @@ class PinningCookieMiddleware(object):
         Set the thread's pinning flag according to the presence of the cookie.
         """
         if PINNING_KEY in request.COOKIES:
-            PinningMixin.pin_thread()
+            pinning.pin_thread()
     
     def process_response(self, request, response):
         """
-        If there was a write to the db, set the cookie to enable pinning.  If
-        the cookie already exists, the time will be reset.
+        If this is a POST request and there was a write to the db, set the
+        cookie to enable pinning.  If the cookie already exists, the time will
+        be reset.
         """
-        if PinningMixin.db_was_written():
-            response.set_cookie(PINNING_KEY, value='y',
+        if request.method == 'POST' and pinning.db_was_written():
+            response.set_cookie(PINNING_KEY,
+                                value='y',
                                 max_age=PINNING_SECONDS)
-            PinningMixin.clear_db_write()
-        PinningMixin.unpin_thread()
+            pinning.clear_db_write()
+        pinning.unpin_thread()
         return response
