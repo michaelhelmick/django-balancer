@@ -105,16 +105,6 @@ class PinningWMSRouter(PinningMixin, WeightedMasterSlaveRouter):
     pass
 
 
-class PinningMasterSlaveRouter(PinningWMSRouter):
-    """An alias to PinningWMSRouter.  This will be removed in 0.4."""
-    
-    def __init__(self):
-        warnings.warn("This router has been renamed to 'PinningWMSRouter', "
-                      "and it will be removed in the next release.",
-                      DeprecationWarning)
-        super(PinningMasterSlaveRouter, self).__init__()
-
-
 class PinningRRMSRouter(PinningMixin, RoundRobinMasterSlaveRouter):
     """A round-robin master/slave router that uses the pinning mixin."""
     pass
