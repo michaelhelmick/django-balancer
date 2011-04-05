@@ -1,5 +1,3 @@
-from django.conf import settings
-
 from balancer import pinning
 
 
@@ -11,6 +9,7 @@ class MasterSlaveMixin(object):
 
     def __init__(self):
         super(MasterSlaveMixin, self).__init__()
+        from django.conf import settings
         self.master = settings.MASTER_DATABASE
 
     def db_for_write(self, model, **hints):
@@ -39,6 +38,7 @@ class PinningMixin(object):
     """
     
     def db_for_read(self, model, **hints):
+        from django.conf import settings
         if pinning.thread_is_pinned():
             return settings.MASTER_DATABASE
         return super(PinningMixin, self).db_for_read(model, **hints)

@@ -3,8 +3,6 @@ import itertools
 import random
 import warnings
 
-from django.conf import settings
-
 from balancer.mixins import MasterSlaveMixin, PinningMixin
 
 
@@ -15,6 +13,7 @@ class BasePoolRouter(object):
     """
     
     def __init__(self):
+        from django.conf import settings
         if isinstance(settings.DATABASE_POOL, dict):
             self.pool = settings.DATABASE_POOL.keys()
         else:
@@ -51,6 +50,7 @@ class WeightedRandomRouter(RandomRouter):
     """
 
     def __init__(self):
+        from django.conf import settings
         self.pool = settings.DATABASE_POOL.keys()
         self.totals = []
 
