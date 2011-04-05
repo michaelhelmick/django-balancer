@@ -49,8 +49,9 @@ class RandomRouterTestCase(BalancerTestCase):
     def test_random_db_selection(self):
         """Simple test to make sure that random database selection works."""
         for i in range(10):
-            self.assertIn(self.router.get_random_db(),
-                          settings.DATABASE_POOL.keys())
+            self.assertTrue(self.router.get_random_db() in
+                            settings.DATABASE_POOL.keys(),
+                            "The database selected is not in the pool.")
 
     def test_relations(self):
         """Relations should only be allowed for databases in the pool."""
