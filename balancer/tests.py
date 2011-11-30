@@ -11,9 +11,10 @@ from balancer.routers import RandomRouter, RoundRobinRouter, \
                              WeightedMasterSlaveRouter, \
                              RoundRobinMasterSlaveRouter, \
                              PinningWMSRouter, PinningRRMSRouter
-from balancer.middleware import PINNING_KEY, PINNING_SECONDS, \
-                                PinningSessionMiddleware, \
+from balancer.middleware import PinningSessionMiddleware, \
                                 PinningCookieMiddleware
+from balancer.utils import patch_settings
+
 
 class BalancerTestCase(TestCase):
 
@@ -68,9 +69,9 @@ class RoundRobinRouterTestCase(BalancerTestCase):
 
     def setUp(self):
         super(RoundRobinRouterTestCase, self).setUp()
-        settings.DATABASE_POOL = ['default', 'other', 'utility']
-        self.router = RoundRobinRouter()
-    
+        with patch_settings(DATABASE_POOL=['default', 'other', 'utility']):
+            self.router = RoundRobinRouter()
+
     def test_sequential_db_selection(self):
         """Databases should cycle in order."""
         for i in range(10):
@@ -106,18 +107,15 @@ class WeightedRandomRouterTestCase(BalancerTestCase):
         # half as much as 'other'.
         check_rate(target=0.5)
 
-        settings.DATABASE_POOL = {
-            'default': 1,
-            'other': 4,
-        }
-        # Reinitialize the router with new weights
-        self.router = WeightedRandomRouter()
-        check_rate(target=0.25)
+        with patch_settings(DATABASE_POOL={'default': 1, 'other': 4}):
+            # Reinitialize the router with new weights
+            self.router = WeightedRandomRouter()
+            check_rate(target=0.25)
 
 
 class MasterSlaveTestMixin(object):
     """A mixin for testing routers that use the MasterSlaveMixin."""
-    
+
     def test_writes(self):
         """Writes should always go to master."""
         self.assertEqual(self.router.db_for_write(self.obj1), 'default')
@@ -126,17 +124,14 @@ class MasterSlaveTestMixin(object):
         """
         Relations should be allowed for databases in the pool and the master.
         """
-        settings.DATABASE_POOL = {
-            'other': 1,
-            'utility': 1,
-        }
-        self.router = WeightedRandomRouter()
+        with patch_settings(DATABASE_POOL={'other': 1, 'utility': 1}):
+            self.router = WeightedRandomRouter()
 
-        # Even though default isn't in the database pool, it is the master so
-        # the relation should be allowed.
-        self.obj1._state.db = 'default'
-        self.obj2._state.db = 'other'
-        self.assertTrue(self.router.allow_relation(self.obj1, self.obj2))
+            # Even though default isn't in the database pool, it is the master
+            # so the relation should be allowed.
+            self.obj1._state.db = 'default'
+            self.obj2._state.db = 'other'
+            self.assertTrue(self.router.allow_relation(self.obj1, self.obj2))
 
 
 class WMSRouterTestCase(MasterSlaveTestMixin, BalancerTestCase):
@@ -149,7 +144,7 @@ class WMSRouterTestCase(MasterSlaveTestMixin, BalancerTestCase):
 
 class RRMSRouterTestCase(MasterSlaveTestMixin, BalancerTestCase):
     """Tests for the RoundRobinMasterSlaveRouter."""
-    
+
     def setUp(self):
         super(RRMSRouterTestCase, self).setUp()
         self.router = RoundRobinMasterSlaveRouter()
@@ -160,24 +155,23 @@ class PinningRouterTestMixin(object):
 
     def setUp(self):
         super(PinningRouterTestMixin, self).setUp()
-        
+
         class MockRequest(object):
             COOKIES = []
             method = 'GET'
             session = {}
-            
-        
+
         self.mock_request = MockRequest()
-        
+
         class MockResponse(object):
             cookie = None
-            
+
             def set_cookie(self, key, value, max_age):
                 self.cookie = key
-        
+
         self.mock_response = MockResponse()
 
-    def test_pinning(self):
+    def test_master_pinning(self):
         # Check to make sure the 'other' database shows in in reads first
         success = False
         for i in range(100):
@@ -186,10 +180,10 @@ class PinningRouterTestMixin(object):
                 success = True
                 break
         self.assertTrue(success, "The 'other' database was not offered.")
-        
+
         # Simulate a write
         self.router.db_for_write(self.obj1)
-        
+
         # Check to make sure that only the master database shows up in reads,
         # since the thread should now be pinned
         success = True
@@ -199,63 +193,91 @@ class PinningRouterTestMixin(object):
                 success = False
                 break
         self.assertTrue(success, "The 'other' database was offered in error.")
-        
+
         pinning.unpin_thread()
         pinning.clear_db_write()
-    
-    def test_middleware(self):
+
+    def test_request_pinning(self):
+        """
+        If the request_pinned flag is set, reads should consistently go to the
+        first database that was selected.
+        """
+        pinning.set_request_pin()
+        db = self.router.db_for_read(self.obj1)
+
+        for i in range(10):
+            selected_db = self.router.db_for_read(self.obj1)
+            self.assertEqual(db, selected_db)
+
+        pinning.unpin_thread()
+        pinning.clear_request_pin()
+
+    def test_master_pinning_middleware(self):
+        key = getattr(settings, 'MASTER_PINNING_KEY', 'master_db_pinned')
+        seconds = int(getattr(settings, 'MASTER_PINNING_SECONDS', 5))
+
         for middleware, vehicle in [(PinningSessionMiddleware(), 'session'),
                                     (PinningCookieMiddleware(), 'cookie')]:
             # The first request shouldn't pin the database
             middleware.process_request(self.mock_request)
-            self.assertFalse(pinning.thread_is_pinned())
-            
+            self.assertFalse(pinning.pinned_to_master())
+
             # A simulated write also shouldn't, if the request isn't a POST
             pinning.set_db_write()
             middleware.process_request(self.mock_request)
-            self.assertFalse(pinning.thread_is_pinned())
-            
+            self.assertFalse(pinning.pinned_to_master())
+
             # This response should set the session variable and clear the pin
             pinning.set_db_write()
             self.mock_request.method = 'POST'
             response = middleware.process_response(self.mock_request,
                                                    self.mock_response)
-            self.assertFalse(pinning.thread_is_pinned())
+            self.assertFalse(pinning.pinned_to_master())
             self.assertFalse(pinning.db_was_written())
             if vehicle == 'session':
                 self.assertTrue(
-                    self.mock_request.session.get(PINNING_KEY, False)
+                    self.mock_request.session.get(key, False)
                 )
             else:
-                self.assertEqual(response.cookie, PINNING_KEY)
+                self.assertEqual(response.cookie, key)
                 self.mock_request.COOKIES = [response.cookie]
-            
+
             # The subsequent request should then pin the database
             middleware.process_request(self.mock_request)
-            self.assertTrue(pinning.thread_is_pinned())
-            
-            pinning.unpin_thread()
-            
+            self.assertTrue(pinning.pinned_to_master())
+
+            pinning.clear_master_pin()
+
             if vehicle == 'session':
                 # After the pinning period has expired, the request should no
                 # longer pin the thread
-                exp = timedelta(seconds=PINNING_SECONDS - 5)
-                self.mock_request.session[PINNING_KEY] = datetime.now() - exp
+                exp = timedelta(seconds=seconds - 5)
+                self.mock_request.session[key] = datetime.now() - exp
                 middleware.process_request(self.mock_request)
-                self.assertFalse(pinning.thread_is_pinned())
-                
-                pinning.unpin_thread()
+                self.assertFalse(pinning.pinned_to_master())
+
+                pinning.clear_master_pin()
+
+    def test_request_pinning_middleware(self):
+        for middleware in [PinningSessionMiddleware(),
+                           PinningCookieMiddleware()]:
+            # If request pinning is enabled, the middleware should set the
+            # request_pinned flag.
+            with patch_settings(REQUEST_PINNING=True):
+                middleware.process_request(self.mock_request)
+                self.assertTrue(pinning.request_pinned())
+            pinning.clear_request_pin()
 
 
 class PinningWMSRouterTestCase(PinningRouterTestMixin, BalancerTestCase):
-    
+
     def setUp(self):
         super(PinningWMSRouterTestCase, self).setUp()
         self.router = PinningWMSRouter()
 
 
 class PinningRRMSRouterTestCase(PinningRouterTestMixin, BalancerTestCase):
-    
+
     def setUp(self):
         super(PinningRRMSRouterTestCase, self).setUp()
         self.router = PinningRRMSRouter()

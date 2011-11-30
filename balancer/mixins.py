@@ -32,18 +32,29 @@ class MasterSlaveMixin(object):
 
 class PinningMixin(object):
     """
-    A mixin that pins reads to the database defined in the MASTER_DATABASE
-    setting for a pre-determined period of time after a write.  Requires the
-    PinningRouterMiddleware.
+    A mixin that pins actions to a specific database when requested.  It
+    requires the MasterSlaveMixin above.
     """
-    
+
     def db_for_read(self, model, **hints):
-        from django.conf import settings
-        if pinning.thread_is_pinned():
-            return settings.MASTER_DATABASE
-        return super(PinningMixin, self).db_for_read(model, **hints)
-    
+        # If the thread should be pinned to master, pin it and clear the flag.
+        if pinning.pinned_to_master():
+            pinning.pin_thread_to(self.master)
+            pinning.clear_master_pin()
+
+        db = pinning.get_pinned_db()
+        if db is None:
+            db = super(PinningMixin, self).db_for_read(model, **hints)
+
+            # If the request should be pinned to the selected database, pin it
+            # and clear the flag.
+            if pinning.request_pinned():
+                pinning.pin_thread_to(db)
+                pinning.clear_request_pin()
+
+        return db
+
     def db_for_write(self, model, **hints):
         pinning.set_db_write()
-        pinning.pin_thread()
-        return super(PinningMixin, self).db_for_write(model, **hints)
+        pinning.pin_thread_to(self.master)
+        db = super(PinningMixin, self).db_for_write(model, **hints)
