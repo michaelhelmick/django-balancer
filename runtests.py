@@ -15,7 +15,7 @@ try:
             "balancer",
         ],
         SITE_ID=1,
-        NOSE_ARGS=['-s'],
+        NOSE_ARGS=['-s', '--verbosity=2',],
         MIDDLEWARE_CLASSES=(),
         DATABASES=balancer.TEST_DATABASES,
         MASTER_DATABASE=balancer.TEST_MASTER_DATABASE,
@@ -39,10 +39,10 @@ except ImportError:
 
 def run_tests(*test_args):
     if not test_args:
-        test_args = ['tests']
+        test_args = ['tests',]
 
     # Run tests
-    test_runner = NoseTestSuiteRunner(verbosity=1)
+    test_runner = NoseTestSuiteRunner(interactive=False)
 
     failures = test_runner.run_tests(test_args)
 
