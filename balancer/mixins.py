@@ -29,6 +29,10 @@ class MasterSlaveMixin(object):
         """Only allow syncdb on the master"""
         return db == self.master
 
+    def allow_migrate(self, db, model):
+        """Only allow syncdb on the master"""
+        return db == self.master
+
 
 class PinningMixin(object):
     """
