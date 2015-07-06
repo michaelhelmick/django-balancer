@@ -3,5 +3,7 @@ in the Django docs, a post on Eli Bendersky's blog [1], and Jeff Balogh's
 django-multidb-router project.  Much of the pinning and round-robin code was
 taken from Jeff Balogh's project and modified.
 
+In July of 2015, development of this library was taken over by Mike Helmick.
+
 [1]: http://eli.thegreenplace.net/2010/01/22/weighted-random-generation-in-python/
 [2]: http://github.com/jbalogh/django-multidb-router/
