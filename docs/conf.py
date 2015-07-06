@@ -46,7 +46,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'django-balancer'
-copyright = u'2010, Brandon Konkle'
+copyright = u'2015, Brandon Konkle, Mike Helmick'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -184,7 +184,7 @@ htmlhelp_basename = 'django-balancerdoc'
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
   ('index', 'django-balancer.tex', u'django-balancer Documentation',
-   u'Brandon Konkle', 'manual'),
+   u'Brandon Konkle', u'Mike Helmick', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -217,5 +217,5 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'django-balancer', u'django-balancer Documentation',
-     [u'Brandon Konkle'], 1)
+     [u'Brandon Konkle', u'Mike Helmick',], 1)
 ]
