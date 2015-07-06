@@ -1,7 +1,6 @@
 import bisect
 import itertools
 import random
-import warnings
 
 from balancer.mixins import MasterSlaveMixin, PinningMixin
 
@@ -40,7 +39,7 @@ class RandomRouter(BasePoolRouter):
         return self.get_random_db()
 
     def get_random_db(self):
-        return random.choice(self.pool)
+        return random.choice(list(self.pool))
 
 
 class WeightedRandomRouter(RandomRouter):
@@ -65,7 +64,7 @@ class WeightedRandomRouter(RandomRouter):
         """Use binary search to find the index of the database to use"""
         rnd = random.random() * self.totals[-1]
         pool_index = bisect.bisect_right(self.totals, rnd)
-        return self.pool[pool_index]
+        return list(self.pool)[pool_index]
 
 
 class RoundRobinRouter(BasePoolRouter):
@@ -78,7 +77,7 @@ class RoundRobinRouter(BasePoolRouter):
         super(RoundRobinRouter, self).__init__()
 
         # Shuffle the pool so the first database isn't slammed during startup.
-        random.shuffle(self.pool)
+        random.shuffle(list(self.pool))
 
         self.pool_cycle = itertools.cycle(self.pool)
 
@@ -89,7 +88,7 @@ class RoundRobinRouter(BasePoolRouter):
         return self.get_next_db()
 
     def get_next_db(self):
-        return self.pool_cycle.next()
+        return next(self.pool_cycle)
 
 
 class WeightedMasterSlaveRouter(MasterSlaveMixin, WeightedRandomRouter):
