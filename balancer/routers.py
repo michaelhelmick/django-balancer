@@ -28,6 +28,10 @@ class BasePoolRouter(object):
         """Explicitly put all models on all databases"""
         return True
 
+    def allow_migrate(self, db, model):
+        """Explicitly put all models on all databases"""
+        return True
+
 
 class RandomRouter(BasePoolRouter):
     """A router that randomly selects from a pool of databases."""
