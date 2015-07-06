@@ -1,9 +1,4 @@
-import threading
-
-from django.conf import settings
-
-
-_locals = threading.local()
+from balancer import pinning
 
 
 class MasterSlaveMixin(object):
@@ -14,6 +9,7 @@ class MasterSlaveMixin(object):
 
     def __init__(self):
         super(MasterSlaveMixin, self).__init__()
+        from django.conf import settings
         self.master = settings.MASTER_DATABASE
 
     def db_for_write(self, model, **hints):
@@ -33,6 +29,10 @@ class MasterSlaveMixin(object):
         """Only allow syncdb on the master"""
         return db == self.master
 
+    def allow_migrate(self, db, model):
+        """Only allow syncdb on the master"""
+        return db == self.master
+
 
 class PinningMixin(object):
     """
@@ -40,50 +40,14 @@ class PinningMixin(object):
     setting for a pre-determined period of time after a write.  Requires the
     PinningRouterMiddleware.
     """
-    
+
     def db_for_read(self, model, **hints):
-        if PinningMixin.is_pinned():
+        from django.conf import settings
+        if pinning.thread_is_pinned():
             return settings.MASTER_DATABASE
         return super(PinningMixin, self).db_for_read(model, **hints)
-    
+
     def db_for_write(self, model, **hints):
-        PinningMixin.set_db_write()
-        PinningMixin.pin_thread()
+        pinning.set_db_write()
+        pinning.pin_thread()
         return super(PinningMixin, self).db_for_write(model, **hints)
-    
-    
-    @staticmethod
-    def pin_thread():
-        """
-        Mark this thread as 'pinned', so that future reads will temporarily go
-        to the master database for the current user.  
-        """
-        _locals.pinned = True
-    
-    @staticmethod
-    def unpin_thread():
-        """
-        Clear the 'pinned' flag so that future reads are distributed normally.
-        """
-        if getattr(_locals, 'pinned', False):
-            del _locals.pinned
-    
-    @staticmethod
-    def is_pinned():
-        """Check whether the current thread is pinned."""
-        return getattr(_locals, 'pinned', False)
-    
-    @staticmethod
-    def set_db_write():
-        """Indicate that the database was written to."""
-        _locals.db_write = True
-    
-    @staticmethod
-    def clear_db_write():
-        if getattr(_locals, 'db_write', False):
-            del _locals.db_write
-    
-    @staticmethod
-    def db_was_written():
-        """Check whether a database write was performed."""
-        return getattr(_locals, 'db_write', False)
