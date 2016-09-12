@@ -28,7 +28,7 @@ class BasePoolRouter(object):
         """Explicitly put all models on all databases"""
         return True
 
-    def allow_migrate(self, db, model):
+    def allow_migrate(self, db, app_label, model_name=None, **hints):
         """Explicitly put all models on all databases"""
         return True
 
