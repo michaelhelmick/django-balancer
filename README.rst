@@ -1,19 +1,17 @@
 Django-Balancer
 ===============
 
-.. image:: https://badge.fury.io/py/django-balancer.png
-    :alt: The PyPI package
-    :target: http://badge.fury.io/py/django-balancer
+.. image:: https://img.shields.io/pypi/v/django-balancer.svg?style=flat-square
+  :target: https://pypi.python.org/pypi/django-balancer 
 
-.. image:: https://img.shields.io/pypi/dw/django-balancer.svg
-    :alt: PyPI download statistics
-    :target: https://pypi.python.org/pypi/django-balancer
+.. image:: https://img.shields.io/pypi/dw/django-balancer.svg?style=flat-square
+  :target: https://pypi.python.org/pypi/django-balancer 
+ 
+.. image:: https://img.shields.io/travis/michaelhelmick/django-balancer.svg?style=flat-square
+  :target: https://travis-ci.org/michaelhelmick/django-balancer 
 
-.. image:: https://travis-ci.org/michaelhelmick/django-balancer.png
-  :target: https://travis-ci.org/michaelhelmick/django-balancer
-
-.. image:: https://coveralls.io/repos/michaelhelmick/django-balancer/badge.svg?branch=master
-  :target: https://coveralls.io/r/michaelhelmick/django-balancer?branch=master
+.. image:: https://img.shields.io/coveralls/michaelhelmick/django-balancer/master.svg?style=flat-square
+  :target: https://coveralls.io/r/michaelhelmick/django-balancer?branch=master 
 
 A set of tools for using Django's multi-db feature to balance database requests
 between multiple replicated databases.  It currently provides some basic
